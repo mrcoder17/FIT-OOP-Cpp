@@ -7,7 +7,7 @@ using testing::Eq;
 struct Value {
     unsigned age;
     unsigned weight;
-    bool operator == (const Value& v){
+    bool operator == (const Value& v) const{
         return age == v.age && weight == v.weight;
     }
 };
@@ -30,10 +30,10 @@ class HashTable
 private:
     Node **arr;
     size_t _size;
-    int calc_hash(const Key& k) const {
+    static int calc_hash(const Key& k) {
         int hash = 0;
-        for (int i = 0; i < k.size(); ++i) {
-            hash += k[i];
+        for (char i : k) {
+            hash += i;
         }
         return hash % 977;
     };
@@ -65,7 +65,7 @@ public:
             }
         }
     }
-    
+
     void swap(HashTable& b) {
         std::swap(arr, b.arr);
         std::swap(_size, b._size);
@@ -83,7 +83,7 @@ public:
         delete[] arr;
         _size = 0;
     }
-    
+
     bool erase(const Key& k){
         int hash = calc_hash(k);
         Node *cur = arr[hash];
@@ -104,7 +104,7 @@ public:
 
         return false;
     }
-    
+
     bool insert(const Key& k, const Value& v){
         int hash = calc_hash(k);
         if (hash >= _size){
@@ -242,23 +242,57 @@ namespace {
 
 TEST_F (HTTest, test1){
     HashTable a;
-    a.insert("one", {1, 2});
-    a.insert("two", {22, 90});
+    a.insert("Key1", {22, 90});
     a.clear();
     ASSERT_EQ(true, a.empty());
 }
 
-TEST_F (HTTest, test2){
+TEST_F(HTTest, test2) {
     HashTable a;
-    a.insert("one", {1, 2});
-    a.insert("two", {22, 90});
-    a.insert("three", {3, 3});
-    a.insert("four", {444, 1234567});
-    a.insert("five", {55, 100000000});
-    a.clear();
-    ASSERT_EQ(true, a.empty());
+    a.insert ("one", {1, 2});
+    Value c = {1, 2};
+    EXPECT_EQ(c, a.at ("one"));
 }
 
+TEST_F(HTTest, test3){
+    HashTable a, b;
+    a.insert ("one_a", {1, 2});
+    b.insert ("one_b", {3, 4});
+    a.swap(b);
+    EXPECT_EQ( a.at("one_b").age==3, b.at ("one_a").age==1);
+    EXPECT_EQ( a.at("one_b").weight==4, b.at ("one_a").weight==2);
+}
+
+TEST_F(HTTest, test4){
+    HashTable a;
+    a.insert ("one", {1, 2});
+    EXPECT_EQ(true, a.contains("one"));
+}
+
+TEST_F(HTTest, test5){
+    HashTable a;
+    a.insert ("", {});
+    EXPECT_EQ(false, a.erase("key"));
+
+}
+
+TEST_F(HTTest, test6){
+    HashTable a,b;
+    a.insert ("one", {1, 2});
+    a.insert ("omf", {3, 4});
+    a.erase("one");
+    EXPECT_EQ(true, a.at("omf").age == 3);
+    EXPECT_EQ(true, a.at("omf").weight == 4);
+}
+
+TEST_F (HTTest, test7){
+    HashTable a;
+    a.insert("Key1", {22, 90});
+    a.clear();
+    ASSERT_EQ(false, a.contains("Key1"));
+}
+
+// 94% lines covered
 
 int main() {
     testing::InitGoogleTest();
