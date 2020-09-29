@@ -1,56 +1,267 @@
 #include <iostream>
-#include <ostream>
+#include <gtest/gtest.h>
 
-class Array{
-private:
-    int size;
-    int *pointer;
+typedef std::string Key;
+using testing::Eq;
 
-public:
-    ~Array(){
-        delete [] pointer;
-    }
-
-    void inputArray(){
-        for (int i = 0; i < size; i++)
-            std:: cin >> pointer[i];
-    }
-
-    void outputArray(){
-        for (int i = 0; i < size; ++i)
-            std:: cout << pointer[i];
-    }
-
-    int operator[](int index){
-        return pointer[index];
-    }
-
-    Array() {
-        size = 10;
-        pointer = new int[size];
-        for (int i = 0; i < size; i++)
-            pointer[i] = 0;
-    }
-
-    Array(const Array &ArrayNew) : size(ArrayNew.size){
-        pointer = new int [size];
-        for (int i = 0; i < size; i++)
-            pointer[i] = ArrayNew.pointer[i];
-    }
-
-    const Array &operator= (const Array &need){
-        if (&need != this){
-            if (size != need.size){
-                delete [] pointer;
-                size = need.size;
-                pointer = new int [size];
-            }
-            for (int i = 0; i < size; i++)
-                pointer[i] = need.pointer[i];
-        }
-        return *this;
+struct Value {
+    unsigned age;
+    unsigned weight;
+    bool operator == (const Value& v){
+        return age == v.age && weight == v.weight;
     }
 };
 
-int main(){
+
+struct Node {
+    Node *next;
+    Value val;
+    Key key;
+    Node(Node *next_, const Value& val_, const Key& key_){
+        next = next_;
+        val = val_;
+        key = key_;
+    }
+};
+
+
+class HashTable
+{
+private:
+    Node **arr;
+    size_t _size;
+    int calc_hash(const Key& k) const {
+        int hash = 0;
+        for (int i = 0; i < k.size(); ++i) {
+            hash += k[i];
+        }
+        return hash % 977;
+    };
+
+public:
+    HashTable(){
+        _size = 0;
+        arr = nullptr;
+    }
+
+    ~HashTable(){
+        for (size_t i = 0; i < _size; ++i)
+            if (arr[i])
+                delete arr[i];
+        delete[] arr;
+    }
+
+    HashTable(const HashTable& b){
+        _size = b._size;
+        arr = new Node *[_size];
+        for (size_t i = 0; i < _size; ++i) {
+            arr[i] = nullptr;
+        }
+        for (size_t  i = 0; i < _size; ++i) {
+            Node *cur2 = b.arr[i];
+            while (cur2 != nullptr) {
+                insert(cur2->key, cur2->val);
+                cur2 = cur2->next;
+            }
+        }
+    }
+    
+    void swap(HashTable& b) {
+        std::swap(arr, b.arr);
+        std::swap(_size, b._size);
+    }
+
+    void clear() {
+        for (int i = 0; i < _size; ++i) {
+            while (arr[i] != nullptr) {
+                Node *cur = arr[i]->next;
+                delete arr[i];
+                arr[i] = cur;
+            }
+            arr[i] = nullptr;
+        }
+        delete[] arr;
+        _size = 0;
+    }
+    
+    bool erase(const Key& k){
+        int hash = calc_hash(k);
+        Node *cur = arr[hash];
+        Node *prev = nullptr;
+
+        while (cur != nullptr) {
+            if (cur->key == k) {
+                if (prev == nullptr)
+                    arr[hash] = cur->next;
+                else
+                    prev->next = cur->next;
+                delete cur;
+                return true;
+            }
+            prev = cur;
+            cur = cur->next;
+        }
+
+        return false;
+    }
+    
+    bool insert(const Key& k, const Value& v){
+        int hash = calc_hash(k);
+        if (hash >= _size){
+            size_t size = _size;
+            _size = hash * 2 + 1;
+            Node ** arr1 = new Node *[_size];
+            for (size_t i = 0; i < size; i++){
+                arr1[i] = arr[i];
+            }
+            for (size_t  i = size; i < _size; i++) {
+                arr1[i] = nullptr;
+            }
+            delete[] arr;
+            arr = arr1;
+        }
+        if (arr[hash] == nullptr){
+            arr[hash] = new Node (nullptr, v, k);
+            return true;
+        }
+        else{
+            Node *cur = arr [hash];
+            Node *prev = nullptr;
+            while (cur != nullptr){
+                if (cur->key == k)
+                    return false;
+                prev = cur;
+                cur = cur->next;
+            }
+            cur = new Node(nullptr, v, k);
+            prev->next = cur;
+            return true;
+        }
+    }
+
+    bool contains(const Key &k) const {
+        int hash = calc_hash(k);
+        Node *cur = arr[hash];
+        while (cur != nullptr) {
+            if (cur->key == k) {
+                return true;
+            }
+            cur = cur->next;
+        }
+        return false;
+    }
+
+    Value& at(const Key& k){
+        int hash = calc_hash(k);
+        Node *cur = arr[hash];
+        while (cur != nullptr) {
+            if (cur->key == k)
+                return cur->val;
+            cur = cur->next;
+        }
+        throw std::invalid_argument("error");
+    }
+
+    const Value& at(const Key& k) const{
+        int hash = calc_hash(k);
+        const Node *cur = arr[hash];
+        while (cur != nullptr) {
+            if (cur->key == k)
+                return cur->val;
+            cur = cur->next;
+        }
+        throw std::invalid_argument("error");
+    }
+
+    size_t size() const { return _size; }
+
+    bool empty() const{ return _size == 0;}
+
+
+    HashTable &operator=(const HashTable &b){
+        clear();
+        _size = b._size;
+        arr = new Node *[_size];
+        for (size_t i = 0; i < _size; ++i) {
+            arr[i] = nullptr;
+        }
+        for (size_t  i = 0; i < _size; ++i) {
+            Node *cur2 = b.arr[i];
+            while (cur2 != nullptr) {
+                insert(cur2->key, cur2->val);
+                cur2 = cur2->next;
+            }
+        }
+        return *this;
+    }
+
+    Value& operator[](const Key& k){
+        int hash = calc_hash(k);
+        if (!contains(k))
+            insert(k, {0, 0});
+        Node *cur = arr[hash];
+        while (cur != nullptr) {
+            if (cur->key == k)
+                return cur->val;
+            cur = cur->next;
+        }
+    }
+
+    friend bool operator==(const HashTable& a, const HashTable& b){
+        if(a._size != b._size)
+            return false;
+
+        for (int i = 0; i < a._size; ++i) {
+            Node *cur1 = a.arr[i];
+            while (cur1 != nullptr){
+                Node *cur2 = b.arr[i];
+                while  (cur2 != nullptr){
+                    if ((cur1->val == cur2->val) && (cur1->key == cur2->key)) {
+                        break;
+                    }
+                    cur2 = cur2->next;
+                }
+                if (cur2 == nullptr) {
+                    return false;
+                }
+                cur1 = cur1->next;
+            }
+        }
+
+        return true;
+    }
+    friend bool operator!=(const HashTable &a, const HashTable &b) {
+        return !(a==b);
+    };
+};
+
+namespace {
+    class HTTest : public testing::Test {
+    };
+}
+
+TEST_F (HTTest, test1){
+    HashTable a;
+    a.insert("one", {1, 2});
+    a.insert("two", {22, 90});
+    a.clear();
+    ASSERT_EQ(true, a.empty());
+}
+
+TEST_F (HTTest, test2){
+    HashTable a;
+    a.insert("one", {1, 2});
+    a.insert("two", {22, 90});
+    a.insert("three", {3, 3});
+    a.insert("four", {444, 1234567});
+    a.insert("five", {55, 100000000});
+    a.clear();
+    ASSERT_EQ(true, a.empty());
+}
+
+
+int main() {
+    testing::InitGoogleTest();
+    RUN_ALL_TESTS();
+    return 0;
 }
